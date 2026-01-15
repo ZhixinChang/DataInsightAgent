@@ -11,7 +11,7 @@ def add_current_dir_to_path(current_dir):
 
 
 add_current_dir_to_path('')
-from data_insight_agent import DataInsightTeam
+from data_insight_agent_autogen import DataInsightTeam
 
 
 

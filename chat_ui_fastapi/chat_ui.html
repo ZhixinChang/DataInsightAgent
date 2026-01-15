@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data-Insight-Team</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: row; /* 改为横向布局 */
+        }
+
+        /* ---------------- 左侧侧边栏 ---------------- */
+        #sidebar {
+            width: 260px; /* 展开宽度 */
+            min-width: 60px; /* 收缩最小宽度 */
+            background-color: white;
+            color: #333;
+            transition: width 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            border-right: 1px solid #e0e0e0;
+        }
+
+        #sidebar.collapsed {
+            width: 60px; /* 收缩宽度 */
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #sidebar.collapsed .sidebar-title {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar-toggle {
+            width: 32px;
+            height: 32px;
+            background-color: transparent;
+            border: 1px solid #e0e0e0;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .sidebar-toggle:hover {
+            background-color: #f8f9fa;
+            color: #3498db;
+            border-color: #3498db;
+        }
+
+        .sidebar-menu {
+            padding: 16px 8px;
+            flex: 1;
+            max-height: calc(100vh - 80px); /* 减去header高度 */
+            overflow-y: auto;
+        }
+
+        /* 只有当文件夹内容过多时才显示滚动条 - 已移至sidebar-menu */
+        .folder-content {
+            /* 不再需要overflow-y，让下拉菜单能正常显示 */
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background-color 0.2s;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .menu-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .menu-item.active {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .menu-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .menu-text {
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        #sidebar.collapsed .menu-text {
+            opacity: 0;
+            width: 0;
+        }
+
+        /* 历史对话列表样式 */
+        .history-list {
+            margin: 8px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .history-list.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .history-item {
+            padding: 8px 16px 8px 36px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            transition: background-color 0.2s;
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .history-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .history-item.active {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        /* 展开/收起图标样式 */
+        .menu-item.has-submenu {
+            position: relative;
+        }
+
+        .menu-item.has-submenu::after {
+            content: '▼';
+            position: absolute;
+            right: 16px;
+            font-size: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item.has-submenu.expanded::after {
+            transform: rotate(180deg);
+        }
+
+        /* 当侧边栏收缩时隐藏历史对话列表 */
+        #sidebar.collapsed .history-list {
+            display: none;
+        }
+
+        /* 当侧边栏收缩时隐藏文件夹列表 */
+        #sidebar.collapsed .folder-list {
+            display: none;
+        }
+
+        /* 当侧边栏收缩时隐藏展开/收起图标 */
+        #sidebar.collapsed .menu-item.has-submenu::after {
+            display: none;
+        }
+
+        /* 文件上传按钮样式 */
+        #input-container button:first-of-type {
+            width: auto;
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* 文件消息样式 */
+        .message-file {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+
+        .message-file-icon {
+            font-size: 20px;
+        }
+
+        .message-file-info {
+            flex: 1;
+        }
+
+        .message-file-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .message-file-size {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .message-file-download {
+            color: #007bff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* 文件夹和文件的展开/收起样式 */
+        .folder-list {
+            margin: 8px 0;
+            transition: max-height 0.3s ease;
+        }
+
+        .folder-list.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .folder-item {
+            padding: 8px 16px 8px 36px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            transition: background-color 0.2s;
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .folder-item::before {
+            content: '📁';
+            position: absolute;
+            left: 16px;
+            font-size: 12px;
+        }
+
+        .folder-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .folder-item.active {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        /* 侧边栏文件项样式 */
+        .sidebar-file-item {
+            padding: 8px 16px 8px 48px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .sidebar-file-item::before {
+            content: '📄';
+            position: absolute;
+            left: 28px;
+            font-size: 12px;
+        }
+
+        .sidebar-file-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .sidebar-file-item .file-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-file-item .file-desc {
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 文件操作区域 */
+        .sidebar-file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .file-actions {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #999;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .action-btn:hover {
+            background-color: #f0f0f0;
+            color: #666;
+        }
+
+        .dots {
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        /* 文件下拉菜单 */
+        .file-menu {
+            position: absolute;
+            right: 0;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            min-width: 120px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .file-menu.show {
+            display: block;
+        }
+
+        .file-menu .menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        .file-menu .menu-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* 文件夹上传按钮样式 */
+        .folder-upload-btn {
+            padding: 8px 16px 8px 36px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #3498db;
+            transition: background-color 0.2s;
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .folder-upload-btn::before {
+            content: '📁+';
+            position: absolute;
+            left: 16px;
+            font-size: 12px;
+        }
+
+        .folder-upload-btn:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* ---------------- 中间聊天容器 ---------------- */
+        #chat-container {
+            flex: 1; /* 占满剩余空间 */
+            background-color: #fff;
+            margin: 16px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 32px); /* 减去上下边距 */
+            overflow: hidden;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+            margin: 0 16px;
+            padding: 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 消息容器：头像+内容（单个容器对应一条完整消息） */
+        .message-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        /* 用户消息：右对齐+头像在右 */
+        .message-wrapper.user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+        .message-wrapper.user .message-avatar {
+            background-color: #007bff;
+        }
+        .message-wrapper.user .message-avatar::after {
+            content: "U";
+        }
+        .message-wrapper.user .message {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        /* 助手消息：左对齐+单个容器承载所有流式内容 */
+        .message-wrapper.assistant {
+            margin-right: auto;
+        }
+        .message-wrapper.assistant .message-avatar {
+            background-color: #6c757d;
+        }
+        .message-wrapper.assistant .message-avatar::after {
+            content: "A";
+        }
+        .message-wrapper.assistant .message {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+
+        /* 错误/系统消息 */
+        .message-wrapper.error,
+        .message-wrapper.system {
+            justify-content: center;
+        }
+        .message-wrapper.error .message-avatar,
+        .message-wrapper.system .message-avatar {
+            display: none;
+        }
+        .message-wrapper.error .message {
+            color: #721c24;
+            background-color: #d1ecf1;
+            border: 1px solid #f5c6cb;
+            max-width: 100%;
+        }
+        .message-wrapper.system .message {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            max-width: 100%;
+            text-align: center;
+        }
+
+        /* 消息内容：统一样式 */
+        .message {
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        #input-container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #input-container input:disabled,
+        #input-container button:disabled {
+            background-color: #e0e0e0;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #input-container input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            height: 44px;
+            box-sizing: border-box;
+        }
+
+        #input-container button {
+            padding: 12px 24px;
+            border: 1px solid #e0e0e0;
+            background-color: white;
+            color: #666;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 44px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #input-container button:hover:not(:disabled) {
+            background-color: #f8f9fa;
+            border-color: #3498db;
+            color: #3498db;
+        }
+
+        /* 输入框按钮样式 - 白色简约风格 */
+        .input-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border: 1px solid #e0e0e0;
+            background-color: white;
+            color: #666;
+        }
+
+        .input-btn:hover:not(:disabled) {
+            background-color: #f8f9fa;
+            border-color: #3498db;
+            color: #3498db;
+        }
+
+        /* 清空按钮 */
+        .clear-btn {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+            height: 44px;
+            box-sizing: border-box;
+        }
+
+        /* 上传按钮 */
+        .upload-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        /* 发送按钮 */
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1;
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            /* 确保按钮内容可见 */
+            overflow: visible !important;
+            text-indent: 0 !important;
+        }
+
+        .send-btn:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+            color: white;
+        }
+
+
+
+        /* ---------------- 右侧文件结果栏 ---------------- */
+        #file-result-panel {
+            width: 320px;
+            min-width: 280px;
+            background-color: #fff;
+            margin: 16px 16px 16px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 32px);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #ddd;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .file-item:hover {
+            border-color: #007bff;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .file-desc {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 左侧侧边栏 -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">🖌️ Data-Insight-Team</div>
+            <button class="sidebar-toggle" id="sidebarToggle">≡</button>
+        </div>
+        <div class="sidebar-menu">
+            <!-- 新增对话 -->
+            <div class="menu-item" id="newChatItem">
+                <div class="menu-icon">✚</div>
+                <div class="menu-text">新增对话</div>
+            </div>
+            <!-- 历史对话 -->
+            <div class="menu-item has-submenu" id="historyChatItem">
+                <div class="menu-icon">📜</div>
+                <div class="menu-text">历史对话</div>
+            </div>
+            <div class="history-list collapsed" id="historyList"></div>
+            <!-- 文件 -->
+            <div class="menu-item has-submenu" id="filesItem">
+                <div class="menu-icon">📁</div>
+                <div class="menu-text">文件</div>
+            </div>
+            <div class="folder-list folder-content collapsed" id="filesList"></div>
+            <!-- 分析结果 -->
+            <div class="menu-item has-submenu" id="analysisResultsItem">
+                <div class="menu-icon">📊</div>
+                <div class="menu-text">分析结果</div>
+            </div>
+            <div class="folder-list folder-content collapsed" id="analysisResultsList"></div>
+        </div>
+    </div>
+
+    <!-- 中间聊天容器 -->
+    <div id="chat-container">
+        <div id="messages"></div>
+        <div id="input-container">
+            <div id="file-preview" style="width: 100%; margin-bottom: 8px; display: none;">
+                <div id="preview-files" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+            </div>
+            <div class="input-wrapper" style="display: flex; flex-direction: column; border: 1px solid #ddd; border-radius: 6px; padding: 0; overflow: hidden;">
+                <!-- 文字输入区域 -->
+                <div style="padding: 0;">
+                    <input type="text" id="message-input" placeholder="Type a message..." style="width: 100%; border: none; padding: 12px 16px; height: 44px; box-sizing: border-box; outline: none;">
+                </div>
+                <!-- 按钮区域 -->
+                <div style="display: flex; align-items: center; height: 44px; padding: 4px;">
+                    <button onclick="clearChatHistory()" class="input-btn clear-btn" title="清空聊天记录" style="margin: 0 8px 0 0; border-radius: 4px; border: 1px solid #ddd; height: calc(100% - 8px);">🗑️</button>
+                    <button onclick="document.getElementById('file-input').click()" class="input-btn upload-btn" title="上传文件" style="margin: 0; border-radius: 4px; border: 1px solid #ddd; height: calc(100% - 8px);">+</button>
+                    <input type="file" id="file-input" style="display: none;" accept="*/*" onchange="uploadFile(this.files)">
+                    <div style="flex: 1;"></div>
+                    <button id="send-button" onclick="sendMessage()" class="input-btn send-btn" title="发送" style="margin: 0; border-radius: 4px; border: 1px solid #ddd; height: calc(100% - 8px);">↑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧文件结果栏 -->
+    <div id="file-result-panel">
+        <div class="panel-header">文件结果</div>
+        <div class="panel-content" id="fileContent">
+            <div style="text-align: center; color: #999; padding: 40px 0;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                <div style="margin-bottom: 8px;">请点击左侧文件夹查看文件</div>
+                <div>选择文件后将在此处预览内容</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        let currentAssistantMessage = null; // 单个助手消息容器（含头像+内容）
+        let currentConversationId = null; // 当前对话ID（新增对话时生成/获取）
+        let pendingFiles = []; // 待发送的文件列表
+
+        // 侧边栏展开/收缩逻辑
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        let isCollapsed = false;
+        sidebarToggle.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            sidebar.classList.toggle('collapsed', isCollapsed);
+            sidebarToggle.textContent = isCollapsed ? '▶' : '◀';
+        });
+
+        // ---------------- 侧边栏菜单接口请求逻辑 ----------------
+        // 1. 新增对话
+        const newChatItem = document.getElementById('newChatItem');
+        newChatItem.addEventListener('click', async () => {
+            try {
+                // 调用新增对话接口
+                const response = await fetch('http://localhost:8000/new-conversation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`新增对话失败：${response.status}`);
+
+                const result = await response.json();
+                currentConversationId = result.conversationId; // 保存新对话ID
+                saveConversationId(currentConversationId); // 持久化到localStorage
+
+                // 清空当前聊天记录，显示系统提示
+                messagesContainer.innerHTML = '';
+                createMessage(`已创建新对话（ID：${currentConversationId}）`, 'system');
+
+                // 激活菜单样式
+                setActiveMenuItem(newChatItem);
+
+                console.log('新增对话成功', result);
+            } catch (error) {
+                console.error('新增对话接口请求失败', error);
+                createMessage(`新增对话失败：${error.message}`, 'error');
+            }
+        });
+
+        // 2. 历史对话
+        const historyChatItem = document.getElementById('historyChatItem');
+        const historyList = document.getElementById('historyList');
+
+        historyChatItem.addEventListener('click', async () => {
+            // 切换展开/收起状态
+            historyChatItem.classList.toggle('expanded');
+            historyList.classList.toggle('collapsed');
+
+            // 如果是展开状态，获取历史对话列表
+            if (!historyList.classList.contains('collapsed')) {
+                try {
+                    // 调用历史对话列表接口
+                    const response = await fetch('http://localhost:8000/history-conversations', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error(`获取历史对话失败：${response.status}`);
+
+                    const historyConversations = await response.json();
+
+                    // 清空历史对话列表
+                    historyList.innerHTML = '';
+
+                    // 创建全局对话菜单容器（Portal）
+                    if (!document.getElementById('global-conversation-menu')) {
+                        const globalMenuContainer = document.createElement('div');
+                        globalMenuContainer.id = 'global-conversation-menu';
+                        globalMenuContainer.className = 'file-menu';
+                        globalMenuContainer.innerHTML = `<div class="menu-item" onclick="deleteConversationFromMenu()">删除</div>`;
+                        document.body.appendChild(globalMenuContainer);
+                    }
+
+                    // 渲染历史对话列表到侧边栏
+                    historyConversations.forEach((conv, index) => {
+                        const historyItemContainer = document.createElement('div');
+                        historyItemContainer.style.display = 'flex';
+                        historyItemContainer.style.alignItems = 'center';
+
+                        const historyItem = document.createElement('div');
+                        historyItem.className = `history-item ${currentConversationId === conv.conversationId ? 'active' : ''}`;
+                        historyItem.textContent = `对话 ${index + 1}`;
+                        historyItem.dataset.conversationId = conv.conversationId;
+                        historyItem.style.flex = '1';
+
+                        // 添加点击事件，加载对应对话的历史记录
+                        historyItem.addEventListener('click', () => {
+                            loadConversationHistory(conv.conversationId);
+                        });
+
+                        // 添加对话操作按钮（三个点）
+                        const conversationActions = document.createElement('div');
+                        conversationActions.className = 'file-actions';
+                        conversationActions.innerHTML = `
+                            <button class="action-btn" onclick="toggleConversationMenu(event, this, '${conv.conversationId}')">
+                                <span class="dots">•••</span>
+                            </button>
+                        `;
+
+                        historyItemContainer.appendChild(historyItem);
+                        historyItemContainer.appendChild(conversationActions);
+                        historyList.appendChild(historyItemContainer);
+                    });
+
+                    console.log('获取历史对话成功', historyConversations);
+                } catch (error) {
+                    console.error('历史对话接口请求失败', error);
+                    createMessage(`获取历史对话失败：${error.message}`, 'error');
+                }
+            }
+        });
+
+        // 3. 文件
+        const filesItem = document.getElementById('filesItem');
+        const filesList = document.getElementById('filesList');
+
+        filesItem.addEventListener('click', async () => {
+            // 切换展开/收起状态
+            filesItem.classList.toggle('expanded');
+            filesList.classList.toggle('collapsed');
+
+            // 如果是展开状态，获取文件列表
+            if (!filesList.classList.contains('collapsed')) {
+                try {
+                    // 默认使用"所有文件"文件夹
+                    const defaultFolder = "所有文件";
+                    // 调用文件夹下文件列表接口
+                    const response = await fetch(`http://localhost:8000/files/${defaultFolder}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error(`获取文件失败：${response.status}`);
+
+                    const files = await response.json();
+
+                    // 清空文件列表
+                    filesList.innerHTML = '';
+
+                    // 先添加上传文件按钮到侧边栏文件列表的顶部
+                    const uploadButton = document.createElement('div');
+                    uploadButton.className = 'folder-upload-btn';
+                    uploadButton.textContent = '上传文件';
+                    uploadButton.addEventListener('click', () => {
+                        // 直接上传文件到默认文件夹
+                        uploadFileToDefaultFolder();
+                    });
+
+                    filesList.appendChild(uploadButton);
+
+                    // 然后渲染文件列表到侧边栏
+                    files.forEach((file, index) => {
+                        const fileElement = document.createElement('div');
+                        fileElement.className = 'sidebar-file-item';
+                        fileElement.innerHTML = `
+                            <div class="file-info">
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-desc">大小：${file.size}</div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn" onclick="toggleFileMenu(event, this, '${file.name}')">
+                                    <span class="dots">•••</span>
+                                </button>
+                            </div>
+                        `;
+                        fileElement.dataset.fileName = file.name;
+
+                        // 添加点击事件，预览文件
+                        fileElement.querySelector('.file-info').addEventListener('click', () => {
+                            previewFile(file.name);
+                        });
+
+                        filesList.appendChild(fileElement);
+                    });
+
+                    // 创建全局下拉菜单容器（Portal）
+                    if (!document.getElementById('global-file-menu')) {
+                        const globalMenuContainer = document.createElement('div');
+                        globalMenuContainer.id = 'global-file-menu';
+                        globalMenuContainer.className = 'file-menu';
+                        globalMenuContainer.innerHTML = `<div class="menu-item" onclick="downloadFileFromMenu()">下载</div>`;
+                        document.body.appendChild(globalMenuContainer);
+                    }
+
+                    // 创建全局对话菜单容器（Portal）
+                    if (!document.getElementById('global-conversation-menu')) {
+                        const globalMenuContainer = document.createElement('div');
+                        globalMenuContainer.id = 'global-conversation-menu';
+                        globalMenuContainer.className = 'file-menu';
+                        globalMenuContainer.innerHTML = `<div class="menu-item" onclick="deleteConversationFromMenu()">删除</div>`;
+                        document.body.appendChild(globalMenuContainer);
+                    }
+
+                    console.log('获取文件成功', files);
+                } catch (error) {
+                    console.error('文件接口请求失败', error);
+                    createMessage(`获取文件失败：${error.message}`, 'error');
+                }
+            }
+        });
+
+        // 4. 分析结果
+        const analysisResultsItem = document.getElementById('analysisResultsItem');
+        const analysisResultsList = document.getElementById('analysisResultsList');
+
+        analysisResultsItem.addEventListener('click', async () => {
+            // 切换展开/收起状态
+            analysisResultsItem.classList.toggle('expanded');
+            analysisResultsList.classList.toggle('collapsed');
+
+            // 如果是展开状态，获取分析结果列表
+            if (!analysisResultsList.classList.contains('collapsed')) {
+                try {
+                    // 使用"分析结果"文件夹
+                    const resultFolder = "分析结果";
+                    // 调用文件夹下文件列表接口
+                    const response = await fetch(`http://localhost:8000/files/${resultFolder}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error(`获取分析结果失败：${response.status}`);
+
+                    const files = await response.json();
+
+                    // 清空结果列表
+                    analysisResultsList.innerHTML = '';
+
+                    // 渲染结果列表到侧边栏
+                    files.forEach((file, index) => {
+                        const fileElement = document.createElement('div');
+                        fileElement.className = 'sidebar-file-item';
+                        fileElement.innerHTML = `
+                            <div class="file-info">
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-desc">大小：${file.size}</div>
+                            </div>
+                            <div class="file-actions">
+                                <button class="action-btn" onclick="toggleFileMenu(event, this, '${file.name}')">
+                                    <span class="dots">•••</span>
+                                </button>
+                            </div>
+                        `;
+                        fileElement.dataset.fileName = file.name;
+
+                        // 添加点击事件，预览文件
+                        fileElement.querySelector('.file-info').addEventListener('click', () => {
+                            previewFile(file.name);
+                        });
+
+                        analysisResultsList.appendChild(fileElement);
+                    });
+
+                    console.log('获取分析结果成功', files);
+                } catch (error) {
+                    console.error('分析结果接口请求失败', error);
+                    createMessage(`获取分析结果失败：${error.message}`, 'error');
+                }
+            }
+        });
+
+        // 辅助函数：设置菜单激活样式
+        function setActiveMenuItem(activeItem) {
+            // 移除所有菜单的激活样式
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // 添加当前菜单的激活样式
+            activeItem.classList.add('active');
+        }
+
+        // 直接上传文件到默认文件夹
+        function uploadFileToDefaultFolder() {
+            // 直接上传到默认文件夹"所有文件"
+            uploadFileToFolder('所有文件');
+        }
+
+        // 加载文件夹下的文件列表
+        async function loadFolderFiles(folderName) {
+            try {
+                // 调用文件夹下文件列表接口
+                const response = await fetch(`http://localhost:8000/files/${folderName}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`获取文件夹下文件失败：${response.status}`);
+
+                const files = await response.json();
+
+                // 更新右侧文件结果栏
+                const fileContent = document.getElementById('fileContent');
+                fileContent.innerHTML = `
+                    ${files.map(file => `
+                        <div class="file-item" onclick="previewFile('${file.name}')">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-desc">大小：${file.size} | 创建时间：${file.createTime}</div>
+                        </div>
+                    `).join('')}
+                `;
+
+                console.log('获取文件夹下文件成功', files);
+            } catch (error) {
+                console.error('获取文件夹下文件失败：', error);
+                createMessage(`获取文件夹下文件失败：${error.message}`, 'error');
+            }
+        }
+
+        // 向特定文件夹上传文件
+        async function uploadFileToFolder(folderName, file = null) {
+            // 如果没有提供文件对象，则创建文件输入框让用户选择
+            if (!file) {
+                // 创建隐藏的文件输入框
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '*/*';
+                fileInput.style.display = 'none';
+
+                // 添加文件选择事件
+                fileInput.addEventListener('change', async (e) => {
+                    if (!e.target.files || e.target.files.length === 0) return;
+
+                    const selectedFile = e.target.files[0];
+                    await uploadFileToFolder(folderName, selectedFile);
+
+                    // 移除临时文件输入框
+                    fileInput.remove();
+                });
+
+                // 添加到DOM并模拟点击
+                document.body.appendChild(fileInput);
+                fileInput.click();
+                return;
+            }
+
+            // 如果提供了文件对象，则直接上传
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folderName', folderName);
+
+                // 发送文件上传请求
+                const response = await fetch('http://localhost:8000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`文件上传失败：${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // 上传成功后重新加载文件夹内容
+                await loadFolderFiles(folderName);
+
+                // 如果侧边栏是展开状态，重新渲染侧边栏的文件列表
+                if (folderName === "所有文件" && !filesList.classList.contains('collapsed')) {
+                    // 重新渲染"所有文件"侧边栏列表
+                    try {
+                        const response = await fetch(`http://localhost:8000/files/${folderName}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) throw new Error(`获取文件失败：${response.status}`);
+
+                        const files = await response.json();
+
+                        // 清空文件列表
+                        filesList.innerHTML = '';
+
+                        // 先添加上传文件按钮到侧边栏文件列表的顶部
+                        const uploadButton = document.createElement('div');
+                        uploadButton.className = 'folder-upload-btn';
+                        uploadButton.textContent = '上传文件';
+                        uploadButton.addEventListener('click', () => {
+                            // 直接上传文件到默认文件夹
+                            uploadFileToDefaultFolder();
+                        });
+
+                        filesList.appendChild(uploadButton);
+
+                        // 然后渲染文件列表到侧边栏
+                        files.forEach((file, index) => {
+                            const fileElement = document.createElement('div');
+                            fileElement.className = 'sidebar-file-item';
+                            fileElement.innerHTML = `
+                                <div class="file-info">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-desc">大小：${file.size}</div>
+                                </div>
+                                <div class="file-actions">
+                                    <button class="action-btn" onclick="toggleFileMenu(event, this, '${file.name}')">
+                                        <span class="dots">•••</span>
+                                    </button>
+                                </div>
+                            `;
+                            fileElement.dataset.fileName = file.name;
+
+                            // 添加点击事件，预览文件
+                            fileElement.querySelector('.file-info').addEventListener('click', () => {
+                                previewFile(file.name);
+                            });
+
+                            filesList.appendChild(fileElement);
+                        });
+
+                        console.log('重新渲染侧边栏文件列表成功');
+                    } catch (error) {
+                        console.error('重新渲染侧边栏文件列表失败：', error);
+                    }
+                } else if (folderName === "分析结果" && !analysisResultsList.classList.contains('collapsed')) {
+                    // 重新渲染"分析结果"侧边栏列表
+                    try {
+                        const response = await fetch(`http://localhost:8000/files/${folderName}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) throw new Error(`获取分析结果失败：${response.status}`);
+
+                        const files = await response.json();
+
+                        // 清空结果列表
+                        analysisResultsList.innerHTML = '';
+
+                        // 渲染结果列表到侧边栏
+                        files.forEach((file, index) => {
+                            const fileElement = document.createElement('div');
+                            fileElement.className = 'sidebar-file-item';
+                            fileElement.innerHTML = `
+                                <div class="file-info">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-desc">大小：${file.size}</div>
+                                </div>
+                                <div class="file-actions">
+                                    <button class="action-btn" onclick="toggleFileMenu(event, this, '${file.name}')">
+                                        <span class="dots">•••</span>
+                                    </button>
+                                </div>
+                            `;
+                            fileElement.dataset.fileName = file.name;
+
+                            // 添加点击事件，预览文件
+                            fileElement.querySelector('.file-info').addEventListener('click', () => {
+                                previewFile(file.name);
+                            });
+
+                            analysisResultsList.appendChild(fileElement);
+                        });
+
+                        console.log('重新渲染侧边栏分析结果列表成功');
+                    } catch (error) {
+                        console.error('重新渲染侧边栏分析结果列表失败：', error);
+                    }
+                }
+
+                console.log('文件上传到文件夹成功', result);
+            } catch (error) {
+                console.error('文件上传到文件夹失败：', error);
+                createMessage(`文件上传到文件夹失败：${error.message}`, 'error');
+            }
+        }
+
+        // 预览文件内容
+        async function previewFile(fileName) {
+            try {
+                // 调用文件内容接口
+                const response = await fetch(`http://localhost:8000/file/${fileName}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`获取文件内容失败：${response.status}`);
+                }
+
+                const fileData = await response.json();
+
+                // 更新右侧文件结果栏显示文件内容
+                const fileContent = document.getElementById('fileContent');
+
+                // 根据文件类型和内容类型显示不同的内容
+                let contentHTML = '';
+                const imageFileTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                const textFileTypes = ['txt', 'csv', 'json', 'xml', 'html', 'css', 'js', 'py', 'md', 'yaml', 'yml', 'ini', 'log', 'conf', 'properties'];
+
+                if (fileData.contentType === 'dataframe') {
+                    // 数据文件，显示为表格
+                    const columns = fileData.columns;
+                    const rows = fileData.rows;
+                    const sampleData = fileData.sampleData;
+
+                    // 构建表格HTML
+                    let tableHTML = `
+                        <table id="dataframe-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                            <thead>
+                                <tr style="background-color: #f5f5f5;">
+                    `;
+
+                    // 添加表头
+                    columns.forEach(col => {
+                        tableHTML += `
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: bold;">${col}</th>
+                        `;
+                    });
+
+                    tableHTML += `
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    // 添加数据行
+                    sampleData.forEach(row => {
+                        tableHTML += `
+                                <tr style="${sampleData.indexOf(row) % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
+                        `;
+
+                        columns.forEach(col => {
+                            let value = row[col] !== null && row[col] !== undefined ? row[col] : '';
+                            if (typeof value === 'string' && value.length > 100) {
+                                value = value.substring(0, 100) + '...';
+                            }
+                            tableHTML += `
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: left; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${value}</td>
+                            `;
+                        });
+
+                        tableHTML += `
+                                </tr>
+                        `;
+                    });
+
+                    tableHTML += `
+                            </tbody>
+                        </table>
+                    `;
+
+                    contentHTML = `
+                        <div style="margin-bottom: 16px;">
+                            <div class="file-name" style="font-size: 18px;">${fileData.fileName}</div>
+                            <div class="file-desc">文件类型：${fileData.fileType}，共 ${rows} 行 ${columns.length} 列</div>
+                        </div>
+                        <div style="border: 1px solid #eee; border-radius: 6px; padding: 16px; background-color: #f9f9f9; overflow-x: auto;">
+                            ${tableHTML}
+                        </div>
+                        ${rows > 5 ? `<div style="text-align: center; color: #999; margin-top: 8px;">显示前5行数据，共${rows}行</div>` : ''}
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button onclick="window.open('http://localhost:8000/download/${encodeURIComponent(fileData.fileName)}', '_blank')" style="padding: 8px 16px; background-color: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                下载文件
+                            </button>
+                        </div>
+                    `;
+                } else if (fileData.contentType === 'base64') {
+                    // 二进制文件，显示下载提示
+                    if (imageFileTypes.includes(fileData.fileType)) {
+                        // 图片类型，直接显示
+                        contentHTML = `
+                            <div style="margin-bottom: 16px;">
+                                <div class="file-name" style="font-size: 18px;">${fileData.fileName}</div>
+                                <div class="file-desc">文件类型：${fileData.fileType}</div>
+                            </div>
+                            <div style="border: 1px solid #eee; border-radius: 6px; padding: 16px; background-color: #f9f9f9; text-align: center;">
+                                <img src="data:image/${fileData.fileType};base64,${fileData.content}" style="max-width: 100%; max-height: 500px; object-fit: contain;" alt="${fileData.fileName}">
+                            </div>
+                        `;
+                    } else {
+                        // 其他二进制文件，显示下载提示
+                        contentHTML = `
+                            <div style="text-align: center; color: #999; padding: 40px 0;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                                <div style="margin-bottom: 16px;">这是一个${fileData.fileType}类型的二进制文件，无法直接预览</div>
+                                <button onclick="window.open('http://localhost:8000/download/${encodeURIComponent(fileData.fileName)}', '_blank')" style="padding: 8px 16px; background-color: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    下载文件
+                                </button>
+                            </div>
+                        `;
+                    }
+                } else if (fileData.content === `不支持查看${fileData.fileType}类型的文件内容`) {
+                    // 不支持的文件类型
+                    contentHTML = `
+                        <div style="text-align: center; color: #999; padding: 40px 0;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+                            <div>${fileData.content}</div>
+                        </div>
+                    `;
+                } else {
+                    // 文本文件，直接显示
+                    contentHTML = `
+                        <div style="margin-bottom: 16px;">
+                            <div class="file-name" style="font-size: 18px;">${fileData.fileName}</div>
+                            <div class="file-desc">文件类型：${fileData.fileType}</div>
+                        </div>
+                        <div style="border: 1px solid #eee; border-radius: 6px; padding: 16px; background-color: #f9f9f9;">
+                            <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: monospace;">${fileData.content}</pre>
+                        </div>
+                    `;
+                }
+
+                fileContent.innerHTML = contentHTML;
+
+                console.log('文件内容获取成功', fileData);
+            } catch (error) {
+                console.error('获取文件内容失败：', error);
+                createMessage(`获取文件内容失败：${error.message}`, 'error');
+            }
+        }
+
+        // 加载特定对话的历史记录
+        async function loadConversationHistory(conversationId) {
+            // 更新当前对话ID
+            currentConversationId = conversationId;
+            saveConversationId(currentConversationId); // 持久化到localStorage
+
+            // 更新历史对话列表的激活状态
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.conversationId === conversationId) {
+                    item.classList.add('active');
+                }
+            });
+
+            // 加载历史消息
+            await loadHistory(conversationId);
+        }
+
+        // 回车发送消息
+        document.getElementById('message-input').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 添加文件到预览区域
+        function addFileToPreview(file) {
+            // 添加到待发送列表
+            pendingFiles.push(file);
+
+            // 创建预览项
+            const previewItem = document.createElement('div');
+            previewItem.className = 'message-file';
+            previewItem.style.backgroundColor = '#f8f9fa';
+            previewItem.style.padding = '8px';
+            previewItem.style.borderRadius = '8px';
+            previewItem.style.border = '1px solid #e0e0e0';
+            previewItem.style.display = 'flex';
+            previewItem.style.alignItems = 'center';
+            previewItem.style.position = 'relative';
+            previewItem.style.maxWidth = '300px';
+
+            // 创建文件图标或缩略图
+            const fileIcon = document.createElement('div');
+            fileIcon.className = 'message-file-icon';
+            fileIcon.style.marginRight = '12px';
+
+            // 检查是否为图片文件
+            if (file.type.startsWith('image/')) {
+                // 创建图片缩略图
+                const img = document.createElement('img');
+                img.style.width = '40px';
+                img.style.height = '40px';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '4px';
+                img.style.backgroundColor = '#e9ecef';
+
+                // 生成缩略图
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+
+                fileIcon.appendChild(img);
+            } else {
+                // 使用默认文件图标
+                fileIcon.textContent = '📄';
+                fileIcon.style.fontSize = '24px';
+            }
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'message-file-info';
+            fileInfo.style.flex = 1;
+            fileInfo.style.minWidth = '0';
+
+            const fileName = document.createElement('div');
+            fileName.className = 'message-file-name';
+            fileName.textContent = file.name;
+            fileName.style.fontSize = '14px';
+            fileName.style.fontWeight = '500';
+            fileName.style.marginBottom = '2px';
+            fileName.style.overflow = 'hidden';
+            fileName.style.textOverflow = 'ellipsis';
+            fileName.style.whiteSpace = 'nowrap';
+
+            const fileSize = document.createElement('div');
+            fileSize.className = 'message-file-size';
+            fileSize.textContent = formatFileSize(file.size);
+            fileSize.style.fontSize = '12px';
+            fileSize.style.color = '#666';
+
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileSize);
+
+            // 添加移除按钮
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = '✕';
+            removeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+            removeBtn.style.border = 'none';
+            removeBtn.style.color = '#666';
+            removeBtn.style.fontSize = '12px';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.style.marginLeft = '8px';
+            removeBtn.style.padding = '4px 6px';
+            removeBtn.style.borderRadius = '50%';
+            removeBtn.style.width = '20px';
+            removeBtn.style.height = '20px';
+            removeBtn.style.display = 'flex';
+            removeBtn.style.alignItems = 'center';
+            removeBtn.style.justifyContent = 'center';
+            removeBtn.onmouseover = () => {
+                removeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+            };
+            removeBtn.onmouseout = () => {
+                removeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+            };
+            removeBtn.onclick = () => {
+                // 从待发送列表中移除
+                pendingFiles = pendingFiles.filter(f => f !== file);
+                // 移除预览项
+                previewItem.remove();
+                // 如果没有文件了，隐藏预览区域和功能按钮
+                if (pendingFiles.length === 0) {
+                    document.getElementById('file-preview').style.display = 'none';
+                    document.getElementById('function-buttons').style.display = 'none';
+                }
+            };
+
+            previewItem.appendChild(fileIcon);
+            previewItem.appendChild(fileInfo);
+            previewItem.appendChild(removeBtn);
+
+            // 添加到预览容器
+            document.getElementById('preview-files').appendChild(previewItem);
+            // 显示预览区域
+            document.getElementById('file-preview').style.display = 'block';
+        }
+
+        // 文件上传功能
+        async function uploadFile(files) {
+            if (!files || files.length === 0) return;
+
+            const file = files[0];
+            // 添加到预览区域
+            addFileToPreview(file);
+            // 清空文件输入框
+            document.getElementById('file-input').value = '';
+        }
+
+        // 实际上传文件到服务器的函数
+        async function uploadFilesToServer(files) {
+            if (!files || files.length === 0) return;
+
+            // 如果没有当前对话ID，自动创建新对话
+            if (!currentConversationId) {
+                if (!(await createNewConversation())) {
+                    createMessage('请先创建对话', 'error');
+                    return; // 如果创建对话失败，终止上传
+                }
+            }
+
+            try {
+                // 创建FormData
+                const formData = new FormData();
+                formData.append('content', ''); // 空消息内容
+                formData.append('source', 'user');
+                formData.append('conversationId', currentConversationId);
+
+                // 添加所有待上传的文件
+                for (const file of files) {
+                    formData.append('files', file);
+                }
+
+                const response = await fetch('http://localhost:8000/chat-with-files', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`文件上传失败：${response.status} ${errorText}`);
+                }
+
+                // 上传成功后，更新右侧的文件结果栏
+                await loadFolderFiles('所有文件');
+
+                // 如果侧边栏的"所有文件"是展开状态，重新渲染侧边栏的文件列表
+                if (!filesList.classList.contains('collapsed')) {
+                    // 重新渲染"所有文件"侧边栏列表
+                    try {
+                        const defaultFolder = "所有文件";
+                        const response = await fetch(`http://localhost:8000/files/${defaultFolder}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (!response.ok) throw new Error(`获取文件失败：${response.status}`);
+
+                        const files = await response.json();
+
+                        // 清空文件列表
+                        filesList.innerHTML = '';
+
+                        // 先添加上传文件按钮到侧边栏文件列表的顶部
+                        const uploadButton = document.createElement('div');
+                        uploadButton.className = 'folder-upload-btn';
+                        uploadButton.textContent = '上传文件';
+                        uploadButton.addEventListener('click', () => {
+                            // 直接上传文件到默认文件夹
+                            uploadFileToDefaultFolder();
+                        });
+
+                        filesList.appendChild(uploadButton);
+
+                        // 然后渲染文件列表到侧边栏
+                        files.forEach((file, index) => {
+                            const fileElement = document.createElement('div');
+                            fileElement.className = 'sidebar-file-item';
+                            fileElement.innerHTML = `
+                                <div class="file-info">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-desc">大小：${file.size}</div>
+                                </div>
+                                <div class="file-actions">
+                                    <button class="action-btn" onclick="toggleFileMenu(event, this, '${file.name}')">
+                                        <span class="dots">•••</span>
+                                    </button>
+                                </div>
+                            `;
+                            fileElement.dataset.fileName = file.name;
+
+                            // 添加点击事件，预览文件
+                            fileElement.querySelector('.file-info').addEventListener('click', () => {
+                                previewFile(file.name);
+                            });
+
+                            filesList.appendChild(fileElement);
+                        });
+
+                        console.log('重新渲染侧边栏文件列表成功');
+                    } catch (error) {
+                        console.error('重新渲染侧边栏文件列表失败：', error);
+                    }
+                }
+
+                console.log('文件上传成功');
+                return true;
+            } catch (error) {
+                console.error('文件上传失败:', error);
+                createMessage(`文件上传失败：${error.message}`, 'error');
+                return false;
+            } finally {
+                // 无论上传成功与否，都清除预览区域
+                clearFilePreview();
+            }
+        }
+
+
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 当前选中的文件名，用于全局菜单
+        let currentSelectedFile = null;
+        // 当前选中的对话ID，用于全局菜单
+        let currentSelectedConversation = null;
+
+        // 切换文件下拉菜单的显示/隐藏
+        function toggleFileMenu(event, button, fileName) {
+            // 阻止事件冒泡，防止触发文件预览
+            event.stopPropagation();
+
+            // 获取全局菜单容器
+            const globalMenu = document.getElementById('global-file-menu');
+
+            // 关闭菜单如果已经打开
+            if (globalMenu.classList.contains('show') && currentSelectedFile === fileName) {
+                globalMenu.classList.remove('show');
+                currentSelectedFile = null;
+                return;
+            }
+
+            // 更新当前选中的文件
+            currentSelectedFile = fileName;
+
+            // 获取按钮位置
+            const rect = button.getBoundingClientRect();
+            const menuHeight = 36; // 菜单估计高度（一个菜单项）
+            const viewportHeight = window.innerHeight;
+
+            // 设置菜单位置为固定定位，相对于视口
+            globalMenu.style.position = 'fixed';
+            globalMenu.style.right = (window.innerWidth - rect.right) + 'px';
+
+            // 智能定位：检查下方空间是否足够
+            const spaceBelow = viewportHeight - rect.bottom;
+
+            if (spaceBelow >= menuHeight) {
+                // 下方空间足够，显示在按钮下方
+                globalMenu.style.top = rect.bottom + 4 + 'px';
+            } else {
+                // 下方空间不足，显示在按钮上方
+                globalMenu.style.top = (rect.top - menuHeight - 4) + 'px';
+            }
+
+            // 显示菜单
+            globalMenu.classList.add('show');
+        }
+
+        // 切换对话下拉菜单的显示/隐藏
+        function toggleConversationMenu(event, button, conversationId) {
+            // 阻止事件冒泡，防止触发对话加载
+            event.stopPropagation();
+            event.preventDefault();
+
+            // 确保菜单容器已创建
+            let globalMenu = document.getElementById('global-conversation-menu');
+            if (!globalMenu) {
+                // 如果菜单容器不存在，立即创建
+                const globalMenuContainer = document.createElement('div');
+                globalMenuContainer.id = 'global-conversation-menu';
+                globalMenuContainer.className = 'file-menu';
+                globalMenuContainer.innerHTML = `<div class="menu-item" onclick="deleteConversationFromMenu()">删除</div>`;
+                document.body.appendChild(globalMenuContainer);
+                globalMenu = globalMenuContainer;
+            }
+
+            // 关闭菜单如果已经打开
+            if (globalMenu.classList.contains('show') && currentSelectedConversation === conversationId) {
+                globalMenu.classList.remove('show');
+                currentSelectedConversation = null;
+                return;
+            }
+
+            // 先关闭所有菜单
+            const fileMenu = document.getElementById('global-file-menu');
+            if (fileMenu) fileMenu.classList.remove('show');
+            currentSelectedFile = null;
+
+            // 更新当前选中的对话
+            currentSelectedConversation = conversationId;
+
+            // 获取按钮位置
+            const rect = button.getBoundingClientRect();
+            const menuHeight = 36; // 菜单估计高度（一个菜单项）
+            const viewportHeight = window.innerHeight;
+
+            // 设置菜单位置为固定定位，相对于视口
+            globalMenu.style.position = 'fixed';
+            globalMenu.style.right = (window.innerWidth - rect.right) + 'px';
+
+            // 智能定位：检查下方空间是否足够
+            const spaceBelow = viewportHeight - rect.bottom;
+
+            if (spaceBelow >= menuHeight) {
+                // 下方空间足够，显示在按钮下方
+                globalMenu.style.top = rect.bottom + 4 + 'px';
+            } else {
+                // 下方空间不足，显示在按钮上方
+                globalMenu.style.top = (rect.top - menuHeight - 4) + 'px';
+            }
+
+            // 显示菜单
+            globalMenu.classList.add('show');
+            console.log('对话菜单已显示', globalMenu);
+        }
+
+        // 从全局菜单下载文件
+        function downloadFileFromMenu() {
+            if (currentSelectedFile) {
+                // 构造下载URL
+                const downloadUrl = `http://localhost:8000/download/${currentSelectedFile}?folder_name=所有文件`;
+
+                // 创建一个临时链接并点击下载
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = currentSelectedFile;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // 关闭菜单
+                const globalMenu = document.getElementById('global-file-menu');
+                globalMenu.classList.remove('show');
+                currentSelectedFile = null;
+            }
+        }
+
+        // 原来的下载文件功能（保留用于其他地方调用）
+        function downloadFile(fileName) {
+            // 构造下载URL
+            const downloadUrl = `http://localhost:8000/download/${fileName}?folder_name=所有文件`;
+
+            // 创建一个临时链接并点击下载
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 关闭菜单
+            const globalMenu = document.getElementById('global-file-menu');
+            globalMenu.classList.remove('show');
+            currentSelectedFile = null;
+        }
+
+        // 从全局菜单删除对话
+        function deleteConversationFromMenu() {
+            if (currentSelectedConversation) {
+                deleteConversation(currentSelectedConversation);
+            }
+            // 关闭菜单
+            const globalMenu = document.getElementById('global-conversation-menu');
+            if (globalMenu) {
+                globalMenu.classList.remove('show');
+                currentSelectedConversation = null;
+            }
+        }
+
+        // 点击页面其他地方关闭所有菜单
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.file-actions') && !event.target.closest('.file-menu')) {
+                // 关闭文件菜单
+                const globalFileMenu = document.getElementById('global-file-menu');
+                if (globalFileMenu) {
+                    globalFileMenu.classList.remove('show');
+                    currentSelectedFile = null;
+                }
+
+                // 关闭对话菜单
+                const globalConversationMenu = document.getElementById('global-conversation-menu');
+                if (globalConversationMenu) {
+                    globalConversationMenu.classList.remove('show');
+                    currentSelectedConversation = null;
+                }
+            }
+        });
+
+        // 删除对话
+        async function deleteConversation(conversationId) {
+            // 确认删除
+            if (!confirm('确定要删除这个对话吗？此操作不可恢复。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8000/conversation/${conversationId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`删除对话失败：${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // 如果删除的是当前对话，创建新对话
+                if (conversationId === currentConversationId) {
+                    // 创建新对话
+                    const newResponse = await fetch('http://localhost:8000/new-conversation', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!newResponse.ok) throw new Error(`新增对话失败：${newResponse.status}`);
+
+                    const newResult = await newResponse.json();
+                    currentConversationId = newResult.conversationId;
+                    saveConversationId(currentConversationId);
+
+                    // 清空当前聊天记录
+                    messagesContainer.innerHTML = '';
+                    createMessage(`已创建新对话（ID：${currentConversationId}）`, 'system');
+                }
+
+                // 重新加载历史对话列表
+                const historyChatItem = document.getElementById('historyChatItem');
+                if (!historyChatItem.classList.contains('expanded')) {
+                    historyChatItem.click();
+                } else {
+                    // 如果已经展开，重新获取历史对话列表
+                    const response = await fetch('http://localhost:8000/history-conversations', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error(`获取历史对话失败：${response.status}`);
+
+                    const historyConversations = await response.json();
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = '';
+
+                    // 重新渲染历史对话列表
+                    historyConversations.forEach((conv, index) => {
+                        const historyItemContainer = document.createElement('div');
+                        historyItemContainer.style.display = 'flex';
+                        historyItemContainer.style.alignItems = 'center';
+
+                        const historyItem = document.createElement('div');
+                        historyItem.className = `history-item ${currentConversationId === conv.conversationId ? 'active' : ''}`;
+                        historyItem.textContent = `对话 ${index + 1}`;
+                        historyItem.dataset.conversationId = conv.conversationId;
+                        historyItem.style.flex = '1';
+
+                        // 添加点击事件，加载对应对话的历史记录
+                        historyItem.addEventListener('click', () => {
+                            loadConversationHistory(conv.conversationId);
+                        });
+
+                        // 添加删除按钮
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete-conversation-btn';
+                        deleteBtn.textContent = '×';
+                        deleteBtn.style.width = '24px';
+                        deleteBtn.style.height = '24px';
+                        deleteBtn.style.border = 'none';
+                        deleteBtn.style.borderRadius = '50%';
+                        deleteBtn.style.backgroundColor = '#e74c3c';
+                        deleteBtn.style.color = 'white';
+                        deleteBtn.style.cursor = 'pointer';
+                        deleteBtn.style.fontSize = '14px';
+                        deleteBtn.style.display = 'flex';
+                        deleteBtn.style.alignItems = 'center';
+                        deleteBtn.style.justifyContent = 'center';
+                        deleteBtn.style.marginRight = '8px';
+                        deleteBtn.style.opacity = '0.7';
+                        deleteBtn.style.transition = 'opacity 0.2s';
+                        deleteBtn.title = '删除对话';
+
+                        // 鼠标悬停效果
+                        deleteBtn.addEventListener('mouseenter', () => {
+                            deleteBtn.style.opacity = '1';
+                        });
+                        deleteBtn.addEventListener('mouseleave', () => {
+                            deleteBtn.style.opacity = '0.7';
+                        });
+
+                        // 删除按钮点击事件
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation(); // 阻止事件冒泡
+                            deleteConversation(conv.conversationId);
+                        });
+
+                        historyItemContainer.appendChild(deleteBtn);
+                        historyItemContainer.appendChild(historyItem);
+                        historyList.appendChild(historyItemContainer);
+                    });
+                }
+
+                console.log('删除对话成功', result);
+            } catch (error) {
+                console.error('删除对话失败：', error);
+                createMessage(`删除对话失败：${error.message}`, 'error');
+            }
+        }
+
+        // 清空聊天记录
+        async function clearChatHistory() {
+            // 确认清空
+            if (!confirm('确定要清空当前聊天记录吗？此操作不可恢复。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/clear-chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `conversationId=${currentConversationId}`
+                });
+
+                if (!response.ok) {
+                    throw new Error(`清空聊天记录失败：${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // 清空当前聊天记录
+                messagesContainer.innerHTML = '';
+                createMessage('聊天记录已清空', 'system');
+
+                console.log('清空聊天记录成功', result);
+            } catch (error) {
+                console.error('清空聊天记录失败：', error);
+                createMessage(`清空聊天记录失败：${error.message}`, 'error');
+            }
+        }
+
+        // 发送消息相关全局变量
+        let abortController = null;
+        let isSending = false;
+
+        // 取消请求函数
+        function cancelRequest() {
+            if (isSending && abortController) {
+                // 取消当前请求
+                abortController.abort();
+                console.log('请求已取消');
+            }
+        }
+
+        // 发送消息函数
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const button = document.getElementById('send-button'); // 使用ID选择器最可靠
+            const message = input.value.trim();
+
+            // 检查是否有消息或文件需要发送
+            if (!message && pendingFiles.length === 0) return;
+
+            // 如果没有当前对话ID，自动创建新对话
+            if (!currentConversationId) {
+                if (!(await createNewConversation())) {
+                    return; // 如果创建对话失败，终止发送
+                }
+            }
+
+            // 确保找到按钮
+            if (button) {
+                console.log('找到发送按钮:', button);
+                // 切换按钮为终止状态
+                isSending = true;
+                button.onclick = cancelRequest;
+                button.textContent = '◉';
+                button.innerHTML = '◉'; // 确保按钮内容被更新
+                button.title = '终止请求';
+                console.log('按钮状态已更新:', button.textContent, button.onclick);
+            } else {
+                console.error('找不到发送按钮');
+                // 尝试不同的选择器
+                const allButtons = document.querySelectorAll('#input-container button');
+                console.log('所有按钮:', allButtons);
+            }
+
+            // 展示用户消息（仅前端展示，后端自行存储）
+            const messageWrapper = createMessage(message, 'user');
+            const messageContent = messageWrapper.querySelector('.message');
+
+            // 如果有待发送的文件，在消息中显示
+            if (pendingFiles.length > 0) {
+                for (const file of pendingFiles) {
+                    const fileMessage = document.createElement('div');
+                    fileMessage.className = 'message-file';
+                    fileMessage.style.marginTop = '8px';
+
+                    const fileIcon = document.createElement('div');
+                    fileIcon.className = 'message-file-icon';
+                    fileIcon.textContent = '📄';
+
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'message-file-info';
+
+                    const fileName = document.createElement('div');
+                    fileName.className = 'message-file-name';
+                    fileName.textContent = file.name;
+
+                    const fileSize = document.createElement('div');
+                    fileSize.className = 'message-file-size';
+                    fileSize.textContent = formatFileSize(file.size);
+
+                    fileInfo.appendChild(fileName);
+                    fileInfo.appendChild(fileSize);
+
+                    fileMessage.appendChild(fileIcon);
+                    fileMessage.appendChild(fileInfo);
+                    messageContent.appendChild(fileMessage);
+                }
+            }
+
+            input.value = '';
+
+            // 复制待发送的文件列表（用于API调用）
+            const filesToSend = [...pendingFiles];
+
+            // 清空预览区域和待发送列表（点击发送后立即关闭）
+            document.getElementById('preview-files').innerHTML = '';
+            document.getElementById('file-preview').style.display = 'none';
+            pendingFiles = [];
+
+            input.disabled = true;
+
+            try {
+                // 创建中止控制器
+                abortController = new AbortController();
+
+                // 如果有待发送的文件，使用FormData发送
+                if (filesToSend.length > 0) {
+                    console.log('发送文件请求，conversationId:', currentConversationId, 'message:', message, 'files:', filesToSend);
+
+                    const formData = new FormData();
+                    formData.append('content', message);
+                    formData.append('source', 'user');
+                    formData.append('conversationId', currentConversationId);
+
+                    // 添加所有待发送的文件
+                    for (const file of filesToSend) {
+                        formData.append('files', file);
+                    }
+
+                    // 调试FormData内容
+                    for (const pair of formData.entries()) {
+                        console.log('FormData entry:', pair[0], pair[0] === 'files' ? pair[1].name : pair[1]);
+                    }
+
+                    // 显示上传进度提示
+                    const uploadProgress = createMessage('正在处理文件...', 'system');
+
+                    const response = await fetch('http://localhost:8000/chat-with-files', {
+                        method: 'POST',
+                        body: formData,
+                        signal: abortController.signal
+                    });
+
+                    // 移除上传进度提示
+                    uploadProgress.remove();
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误：${response.status}`);
+                    }
+
+                    // 创建助手消息容器
+                    currentAssistantMessage = createMessage('', 'assistant');
+                    const contentElement = currentAssistantMessage.querySelector('.message');
+
+                    // 流式读取并追加到同一个容器
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            console.log('流式响应完成');
+                            currentAssistantMessage = null;
+                            break;
+                        }
+                        const chunk = decoder.decode(value, { stream: true });
+                        contentElement.textContent += chunk;
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else {
+                    // 只有文本消息，使用原来的JSON格式发送
+                    const response = await fetch('http://localhost:8000/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            content: message,
+                            source: 'user',
+                            conversationId: currentConversationId
+                        }),
+                        signal: abortController.signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误：${response.status}`);
+                    }
+
+                    // 创建助手消息容器
+                    currentAssistantMessage = createMessage('', 'assistant');
+                    const contentElement = currentAssistantMessage.querySelector('.message');
+
+                    // 流式读取并追加到同一个容器
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            console.log('流式响应完成');
+                            currentAssistantMessage = null;
+                            break;
+                        }
+                        const chunk = decoder.decode(value, { stream: true });
+                        contentElement.textContent += chunk;
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                }
+
+            } catch (error) {
+                console.error('请求失败：', error);
+
+                // 处理取消请求的情况
+                if (error.name === 'AbortError') {
+                    createMessage('请求已取消', 'system');
+                } else {
+                    createMessage(`请求失败：${error.message}`, 'error');
+                }
+
+                currentAssistantMessage = null;
+            } finally {
+                input.disabled = false;
+
+                // 恢复发送按钮状态
+                const button = document.getElementById('send-button');
+                if (button) {
+                    isSending = false;
+                    button.onclick = sendMessage;
+                    button.textContent = '↑';
+                    button.innerHTML = '↑'; // 确保按钮内容被更新
+                    button.title = '发送';
+                    console.log('按钮已恢复为发送状态');
+                }
+
+                input.focus();
+
+                // 预览区域和待发送列表已在发送时清空
+
+                // 重置中止控制器
+                abortController = null;
+            }
+        }
+
+        // 核心：创建单个消息容器（含头像+内容）
+        function createMessage(content, source) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${source}`;
+
+            // 头像
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+
+            // 内容
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message';
+            contentElement.textContent = content;
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(contentElement);
+            messagesContainer.appendChild(wrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return wrapper;
+        }
+
+        // 优化：加载历史消息（仅读取后端/history接口，不主动保存）
+        async function loadHistory(conversationId = null) {
+            // 清空现有消息（避免重复加载）
+            messagesContainer.innerHTML = '';
+
+            try {
+                // 构建请求URL
+                let url = 'http://localhost:8000/history';
+                if (conversationId) {
+                    url += `?conversationId=${conversationId}`;
+                }
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    // 区分不同错误类型
+                    if (response.status === 404) {
+                        throw new Error('加载历史失败：历史接口未找到，请检查后端是否启动');
+                    } else if (response.status === 500) {
+                        const errorData = await response.json().catch(() => ({ detail: '未知服务器错误' }));
+                        throw new Error(`加载历史失败：${errorData.detail}`);
+                    } else {
+                        throw new Error(`加载历史失败：网络异常（状态码：${response.status}）`);
+                    }
+                }
+
+                const history = await response.json();
+                if (Array.isArray(history) && history.length > 0) {
+                    // 按顺序渲染历史消息
+                    history.forEach(message => {
+                        if (typeof message === 'object' && message.content && message.source) {
+                            createMessage(message.content, message.source);
+                        }
+                    });
+                } else {
+                    createMessage('暂无聊天历史', 'system');
+                }
+            } catch (error) {
+                console.error('加载历史失败：', error);
+                // 友好提示用户
+                if (error.message.includes('Failed to fetch')) {
+                    createMessage('无法连接到聊天服务器，请检查后端是否启动', 'system');
+                } else {
+                    createMessage(`加载历史失败：${error.message}`, 'system');
+                }
+            }
+        }
+
+        // 会话持久化工具函数
+        function saveConversationId(conversationId) {
+            try {
+                localStorage.setItem('currentConversationId', conversationId);
+            } catch (error) {
+                console.error('无法保存会话ID到localStorage:', error);
+            }
+        }
+
+        function loadConversationId() {
+            try {
+                return localStorage.getItem('currentConversationId');
+            } catch (error) {
+                console.error('无法从localStorage加载会话ID:', error);
+                return null;
+            }
+        }
+
+        // 创建新对话的辅助函数
+        async function createNewConversation() {
+            try {
+                const response = await fetch('http://localhost:8000/new-conversation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`新增对话失败：${response.status}`);
+                }
+
+                const result = await response.json();
+                currentConversationId = result.conversationId; // 保存新对话ID
+                saveConversationId(currentConversationId); // 持久化到localStorage
+
+                // 清空当前聊天记录，显示系统提示
+                messagesContainer.innerHTML = '';
+                createMessage(`已创建新对话（ID：${currentConversationId}）`, 'system');
+
+                console.log('新对话创建成功:', currentConversationId);
+                return currentConversationId;
+            } catch (error) {
+                console.error('创建新对话失败:', error);
+                createMessage(`创建新对话失败：${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // 确保页面完全加载后执行
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 从localStorage加载当前对话ID
+            let savedConversationId = loadConversationId();
+
+            if (savedConversationId) {
+                try {
+                    // 尝试获取对话信息以验证其有效性
+                    const response = await fetch(`http://localhost:8000/conversation/${savedConversationId}`, {
+                        method: 'GET'
+                    });
+
+                    if (response.ok) {
+                        currentConversationId = savedConversationId;
+                        try {
+                            await loadHistory(currentConversationId);
+                        } catch (error) {
+                            console.error('加载历史消息失败:', error);
+                            // 加载历史失败但对话ID有效，不创建新对话
+                        }
+                    } else {
+                        console.warn('保存的对话ID无效，清除该ID');
+                        localStorage.removeItem('currentConversationId');
+                        currentConversationId = null;
+                    }
+                } catch (error) {
+                    console.error('验证对话ID失败:', error);
+                    // 验证失败，不创建新对话
+                    currentConversationId = null;
+                }
+            } else {
+                // 没有保存的对话ID，不自动创建新对话
+                currentConversationId = null;
+            }
+        });
+    </script>
+</body>
+</html>

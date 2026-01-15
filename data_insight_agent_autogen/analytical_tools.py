@@ -1,31 +1,25 @@
 import os
 import warnings
-from langchain.tools import tool
-from pydantic import BaseModel, Field
 from typing import List, Tuple, Literal, Annotated
-import matplotlib
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from optbinning import BinningProcess
 
 warnings.filterwarnings("ignore")
 
-matplotlib.use('Agg')  # 无UI后端，不会创建NSWindow
 # 配置中文字体（Windows用"SimHei"，Mac用"Songti SC"，Linux用"WenQuanYi Micro Hei"）
 plt.rcParams["font.family"] = ["Heiti TC"]
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 
-# class GetFromUserInput(BaseModel):
-#     """向用户获取必要的分析信息的输入格式"""
-#     reason: str = Field(description="字符串格式，需要从用户获取额外信息的原因")
-#     user_feed_back: str = Field(default='', description="字符串格式，用户反馈的信息")
-#
-# @tool(args_schema=GetFromUserInput)
-# def get_from_user(reason: Annotated[str, '字符串格式，需要从用户获取额外信息的原因'], user_feed_back: Annotated[str, '字符串格式，用户反馈的信息']=''):
-#     """向用户获取必要的分析信息"""
-#
-#
-#     return '向用户获取信息的原因为：' + reason + '\n' + '用户的反馈为：' + user_feed_back
+
+def get_from_user(reason: Annotated[str, '字符串格式，需要从用户获取额外信息的原因']):
+    """向用户获取必要的分析信息"""
+    info = input("Agent请求获取额外信息：{}，请补充信息（输入“停止”结束任务）：".format(reason))
+    if info == '停止':
+        info = '<USER_TERMINATE>'
+
+    return info
 
 
 def get_from_user_chat_ui(reason: Annotated[str, '字符串格式，需要从用户获取额外信息的原因']):
@@ -53,26 +47,14 @@ def save_summary(result_path: Annotated[str, '字符串格式，分析结果的�
 
     return f'结论总结已输出至：FILE_PATHS<{file_path}>FILE_PATHS'
 
-class DataDescribeInput(BaseModel):
-    """获取数据集相关信息的输入格式"""
-    data_path: str = Field(description="字符串格式，数据集的路径，例如'/.../数据集名称.xlsx'")
 
-@tool(args_schema=DataDescribeInput)
 def data_describe(data_path: Annotated[str, '字符串格式，数据集的路径，例如"/.../数据集名称.xlsx"']) -> str:
     """获取数据集相关信息"""
     df = pd.read_excel(data_path)
     return '数据中包含的信息如下：' + '\n'.join(
         '字段名：' + df.dtypes.index + '，数据类型：' + df.dtypes.values.astype('str'))
 
-class CorrelationAnalysisInput(BaseModel):
-    """批量分析指标x与y之间的相关性趋势的输入格式"""
-    data_path: str = Field(description="字符串格式，数据集的路径，具体到文件名")
-    result_path: str = Field(description="字符串格式，分析结果的保存路径，只需要具体到目录，不需要文件名")
-    x_monotonic_trend_list: List[Tuple[str, Literal[
-                                 '无', '递增', '递减', '凹曲线', '凸曲线', '峰值', '谷值']]] = Field(description="列表格式，包含指标x的字段名和该字段与y的单调趋势的元组")
-    y: str = Field(description="字符串格式，目标指标y的字段名")
 
-@tool(args_schema=CorrelationAnalysisInput)
 def correlation_analysis(data_path: Annotated[str, '字符串格式，数据集的路径，具体到文件名'],
                          result_path: Annotated[str, '字符串格式，分析结果的保存路径，只需要具体到目录，不需要文件名'],
                          x_monotonic_trend_list: Annotated[
