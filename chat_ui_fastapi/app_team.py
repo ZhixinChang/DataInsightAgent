@@ -26,7 +26,7 @@ def add_current_dir_to_path(current_dir):
         print(f"当前目录已在环境变量中")
 
 
-add_current_dir_to_path('/Users/bytedance/zhangzhixin/GitHub/DataInsightAgent')
+add_current_dir_to_path('')
 
 from data_insight_agent import DataInsightTeam
 
